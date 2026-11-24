@@ -17,6 +17,19 @@ A small Flask web app that converts Word `.docx` documents to PDF. Drop a file i
 
 Python 3.10+, Flask, python-docx, ReportLab, Pillow, SQLite, Bootstrap 5 and vanilla JavaScript on the front end. Tests use pytest and pypdf.
 
+## Live demo
+
+Live demo: (link added after first deploy)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/MAHESH21723/Word-to-PDF-Converter-Web)
+
+To host your own copy for free:
+
+1. Sign in to [Render](https://render.com) with GitHub.
+2. Click the **Deploy to Render** button above.
+3. Review the blueprint (`render.yaml`) and click **Apply**.
+
+Free-plan notes: the service sleeps after about 15 minutes idle, so the first request after a pause takes about a minute. The filesystem is ephemeral, so conversion history and files resets on every restart or redeploy. The demo sets `DEMO_DATA=1`, which shows a "public demo" banner. You need no server or domain of your own, and local use is unchanged (see Setup below).
 ## Setup
 
 ```powershell

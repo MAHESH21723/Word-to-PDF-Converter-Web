@@ -8,6 +8,8 @@ Configuration comes from environment variables (all optional):
     CONVERTER_BACKEND  auto | libreoffice | docx2pdf | python (default: auto)
     HOST / PORT        Bind address (default: 127.0.0.1:5000)
     FLASK_DEBUG        Set to 1 to enable Flask's debug mode (default: off)
+    RENDER             Set by Render.com: trust the proxy and use secure cookies
+    DEMO_DATA          Set to 1 for the public demo (banner, old outputs are pruned)
 """
 import logging
 import os
@@ -19,6 +21,7 @@ import zipfile
 
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 
 import converter
@@ -26,6 +29,8 @@ import database
 
 log = logging.getLogger(__name__)
 
+DEMO_NOTICE = "Public demo: data is shared and resets, don't enter personal information."
+DEMO_OUTPUT_MAX_AGE = 60 * 60  # seconds; demo-mode converted PDFs are pruned after an hour
 STORED_PDF_RE = re.compile(r"^[0-9a-f]{32}\.pdf$")
 MAX_UNCOMPRESSED_BYTES = 200 * 1024 * 1024  # guard against zip bombs
 
@@ -60,6 +65,11 @@ def create_app(test_config=None):
         DATABASE=os.path.join(data_dir, "database.db"),
         CONVERTER_BACKEND=None,  # None -> CONVERTER_BACKEND env var / auto
     )
+    if os.environ.get("RENDER"):
+        # Behind Render's HTTPS proxy: trust one hop of X-Forwarded-* headers.
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+        app.config["SESSION_COOKIE_SECURE"] = True
+    app.config["DEMO_DATA"] = os.environ.get("DEMO_DATA") == "1"
     if test_config:
         app.config.update(test_config)
 
@@ -68,6 +78,16 @@ def create_app(test_config=None):
     database.init_db(app.config["DATABASE"])
 
     db = lambda: app.config["DATABASE"]  # noqa: E731
+
+    def prune_old_outputs():
+        """Demo mode only: drop converted PDFs older than an hour to bound disk use."""
+        cutoff = time.time() - DEMO_OUTPUT_MAX_AGE
+        for entry in os.scandir(app.config["OUTPUT_FOLDER"]):
+            try:
+                if entry.is_file() and entry.stat().st_mtime < cutoff:
+                    os.remove(entry.path)
+            except OSError:
+                log.warning("Could not prune %s", entry.path)
 
     def error(message, status):
         return jsonify({"status": "error", "message": message}), status
@@ -85,7 +105,8 @@ def create_app(test_config=None):
 
     @app.route("/")
     def index():
-        return render_template("index.html")
+        return render_template("index.html", demo_mode=app.config["DEMO_DATA"],
+                               demo_notice=DEMO_NOTICE)
 
     @app.route("/convert", methods=["POST"])
     def convert_document():
@@ -105,6 +126,8 @@ def create_app(test_config=None):
         stored_pdf = f"{token}.pdf"
         pdf_path = os.path.join(app.config["OUTPUT_FOLDER"], stored_pdf)
         started = time.time()
+        if app.config["DEMO_DATA"]:
+            prune_old_outputs()
         original_size = 0
         succeeded = False
 
