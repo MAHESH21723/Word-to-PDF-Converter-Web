@@ -19,7 +19,7 @@ Python 3.10+, Flask, python-docx, ReportLab, Pillow, SQLite, Bootstrap 5 and van
 
 ## Live demo
 
-Live demo: (link added after first deploy)
+**Live demo: [https://word-to-pdf-converter-9jz1.onrender.com](https://word-to-pdf-converter-9jz1.onrender.com)** (free hosting: the first visit after a quiet spell can take up to a minute to wake up)
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/MAHESH21723/Word-to-PDF-Converter-Web)
 
